@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Project, TimeEntry, Expense } from '../types/project';
+import { Project, TimeEntry, Expense, ProjectAssignment } from '../types/project';
 import { projectService } from '../services/projects';
 import { useAuthStore } from './authStore';
 
@@ -19,6 +19,7 @@ interface ProjectState {
   updateProject: (projectId: string, project: Partial<Project>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   deleteExpense: (projectId: string, expenseId: string) => Promise<void>;
+  createProject: (projectData: Omit<Project, 'id' | 'timeEntries' | 'expenses' | 'assignments'>) => Promise<void>;
   getAccessibleProjects: () => Project[];
   hasProjectAccess: (projectId: string) => boolean;
 }
@@ -42,62 +43,51 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  getAccessibleProjects: () => {
-    const { user } = useAuthStore.getState();
-    if (!user) return [];
-
-    // Admins can see all projects
-    if (user.role === 'admin') return get().projects;
-
-    // Other users can only see assigned projects
-    return get().projects.filter(project => 
-      project.assignments.some(assignment => assignment.userId === user.id)
-    );
-  },
-
-  hasProjectAccess: (projectId: string) => {
-    const { user } = useAuthStore.getState();
-    if (!user) return false;
-
-    // Admins have access to all projects
-    if (user.role === 'admin') return true;
-
-    // Find the project
-    const project = get().projects.find(p => p.id === projectId);
-    if (!project) return false;
-
-    // Check if user is assigned to the project
-    return project.assignments.some(assignment => assignment.userId === user.id);
-  },
-
   setSelectedProject: (project) => set({ selectedProject: project }),
 
-  addTimeEntry: async (projectId, entry) => {
-    if (!get().hasProjectAccess(projectId)) {
-      throw new Error('No access to this project');
+  createProject: async (projectData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const newProject = await projectService.createProject({
+        ...projectData,
+        timeEntries: [],
+        expenses: [],
+        assignments: []
+      });
+      set((state) => ({
+        projects: [...state.projects, newProject]
+      }));
+    } catch (error) {
+      set({ error: 'Failed to create project' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
     }
+  },
 
+  addTimeEntry: async (projectId, entry) => {
     set({ isLoading: true, error: null });
     try {
       const newEntry = await projectService.addTimeEntry(projectId, entry);
       set((state) => ({
         projects: state.projects.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                timeEntries: [newEntry, ...project.timeEntries],
-                usedHours: project.usedHours ? project.usedHours + entry.hours : entry.hours,
-              }
-            : project
+            project.id === projectId
+                ? {
+                  ...project,
+                  timeEntries: [newEntry, ...project.timeEntries],
+                  usedHours: project.type === 'time-based' ?
+                      (project.usedHours || 0) + entry.hours : undefined
+                }
+                : project
         ),
         selectedProject: state.selectedProject?.id === projectId
-          ? {
+            ? {
               ...state.selectedProject,
               timeEntries: [newEntry, ...state.selectedProject.timeEntries],
-              usedHours: state.selectedProject.usedHours ? 
-                state.selectedProject.usedHours + entry.hours : entry.hours,
+              usedHours: state.selectedProject.type === 'time-based' ?
+                  (state.selectedProject.usedHours || 0) + entry.hours : undefined
             }
-          : state.selectedProject
+            : state.selectedProject
       }));
     } catch (error) {
       set({ error: 'Failed to add time entry' });
@@ -107,23 +97,109 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  // ... rest of the existing methods with access control checks ...
+  addExpense: async (projectId, expense) => {
+    set({ isLoading: true, error: null });
+    try {
+      const newExpense = await projectService.addExpense(projectId, expense);
+      set((state) => ({
+        projects: state.projects.map((project) =>
+            project.id === projectId
+                ? {
+                  ...project,
+                  expenses: [newExpense, ...project.expenses],
+                }
+                : project
+        ),
+        selectedProject: state.selectedProject?.id === projectId
+            ? {
+              ...state.selectedProject,
+              expenses: [newExpense, ...state.selectedProject.expenses],
+            }
+            : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to add expense' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  updateTimeEntry: async (projectId, entry) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedEntry = await projectService.updateTimeEntry(projectId, entry.id, entry);
+      set((state) => ({
+        projects: state.projects.map((project) =>
+            project.id === projectId
+                ? {
+                  ...project,
+                  timeEntries: project.timeEntries.map((te) =>
+                      te.id === entry.id ? updatedEntry : te
+                  ),
+                }
+                : project
+        ),
+        selectedProject: state.selectedProject?.id === projectId
+            ? {
+              ...state.selectedProject,
+              timeEntries: state.selectedProject.timeEntries.map((te) =>
+                  te.id === entry.id ? updatedEntry : te
+              ),
+            }
+            : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to update time entry' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  updateExpense: async (projectId, expense) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedExpense = await projectService.updateExpense(projectId, expense.id, expense);
+      set((state) => ({
+        projects: state.projects.map((project) =>
+            project.id === projectId
+                ? {
+                  ...project,
+                  expenses: project.expenses.map((exp) =>
+                      exp.id === expense.id ? updatedExpense : exp
+                  ),
+                }
+                : project
+        ),
+        selectedProject: state.selectedProject?.id === projectId
+            ? {
+              ...state.selectedProject,
+              expenses: state.selectedProject.expenses.map((exp) =>
+                  exp.id === expense.id ? updatedExpense : exp
+              ),
+            }
+            : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to update expense' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 
   updateProject: async (projectId, projectData) => {
-    if (!get().hasProjectAccess(projectId)) {
-      throw new Error('No access to this project');
-    }
-
     set({ isLoading: true, error: null });
     try {
       const updatedProject = await projectService.updateProject(projectId, projectData);
       set((state) => ({
         projects: state.projects.map((project) =>
-          project.id === projectId ? { ...project, ...updatedProject } : project
+            project.id === projectId ? { ...project, ...updatedProject } : project
         ),
         selectedProject: state.selectedProject?.id === projectId
-          ? { ...state.selectedProject, ...updatedProject }
-          : state.selectedProject
+            ? { ...state.selectedProject, ...updatedProject }
+            : state.selectedProject
       }));
     } catch (error) {
       set({ error: 'Failed to update project' });
@@ -132,4 +208,122 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       set({ isLoading: false });
     }
   },
+
+  deleteProject: async (projectId) => {
+    set({ isLoading: true, error: null });
+    try {
+      await projectService.deleteProject(projectId);
+      set((state) => ({
+        projects: state.projects.filter((project) => project.id !== projectId),
+        selectedProject: state.selectedProject?.id === projectId ? null : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to delete project' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  deleteExpense: async (projectId, expenseId) => {
+    set({ isLoading: true, error: null });
+    try {
+      await projectService.deleteExpense(projectId, expenseId);
+      set((state) => ({
+        projects: state.projects.map((project) =>
+            project.id === projectId
+                ? {
+                  ...project,
+                  expenses: project.expenses.filter((exp) => exp.id !== expenseId),
+                }
+                : project
+        ),
+        selectedProject: state.selectedProject?.id === projectId
+            ? {
+              ...state.selectedProject,
+              expenses: state.selectedProject.expenses.filter((exp) => exp.id !== expenseId),
+            }
+            : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to delete expense' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  addComment: async (projectId, timeEntryId, content) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedEntry = await projectService.addComment(projectId, timeEntryId, content);
+      set((state) => ({
+        projects: state.projects.map((project) =>
+            project.id === projectId
+                ? {
+                  ...project,
+                  timeEntries: project.timeEntries.map((te) =>
+                      te.id === timeEntryId ? updatedEntry : te
+                  ),
+                }
+                : project
+        ),
+        selectedProject: state.selectedProject?.id === projectId
+            ? {
+              ...state.selectedProject,
+              timeEntries: state.selectedProject.timeEntries.map((te) =>
+                  te.id === timeEntryId ? updatedEntry : te
+              ),
+            }
+            : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to add comment' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  requestMoreHours: async (projectId, request) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedProject = await projectService.requestMoreHours(projectId, request);
+      set((state) => ({
+        projects: state.projects.map((project) =>
+            project.id === projectId ? updatedProject : project
+        ),
+        selectedProject: state.selectedProject?.id === projectId
+            ? updatedProject
+            : state.selectedProject
+      }));
+    } catch (error) {
+      set({ error: 'Failed to request more hours' });
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  getAccessibleProjects: () => {
+    const state = get();
+    const user = useAuthStore.getState().user;
+    if (!user) return [];
+
+    return state.projects.filter(project => {
+      const assignment = project.assignments.find(a => a.userId === user.id);
+      return assignment || user.role === 'admin';
+    });
+  },
+
+  hasProjectAccess: (projectId: string) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+
+    const project = get().projects.find(p => p.id === projectId);
+    if (!project) return false;
+
+    return project.assignments.some(a => a.userId === user.id);
+  }
 }));
