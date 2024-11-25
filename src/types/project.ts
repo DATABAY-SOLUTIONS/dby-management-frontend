@@ -44,10 +44,8 @@ export interface Project {
   name: string;
   client: string;
   type: ProjectType;
-  // Time-based project fields
   totalHours?: number;
   usedHours?: number;
-  // Fixed-price project fields
   budget?: number;
   startDate: string;
   endDate: string;
@@ -55,4 +53,8 @@ export interface Project {
   timeEntries: TimeEntry[];
   expenses: Expense[];
   assignments: ProjectAssignment[];
+  jiraEpicId?: string;
+  jiraEpicKey?: string;
+  jiraEpicName?: string;
+  jiraProjectKey?: string;
 }

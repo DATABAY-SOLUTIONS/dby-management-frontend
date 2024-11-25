@@ -15,6 +15,7 @@ interface AuthState {
   updateUserSettings: (settings: Partial<User['settings']>) => Promise<void>;
   setUnreadMessages: (count: number) => void;
   toggleTheme: () => void;
+  initializeAuth: () => Promise<void>;
 }
 
 const getInitialTheme = () => {
@@ -22,19 +23,36 @@ const getInitialTheme = () => {
   return savedTheme === 'dark' ? 'dark' : 'light';
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   unreadMessages: 0,
   theme: getInitialTheme(),
-  isLoading: false,
+  isLoading: true, // Start as true since we'll check auth status on init
   error: null,
+
+  initializeAuth: async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      set({ isLoading: false });
+      return;
+    }
+
+    try {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      const user = await authService.getCurrentUser();
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      localStorage.removeItem('auth_token');
+      delete api.defaults.headers.common['Authorization'];
+      set({ user: null, isAuthenticated: false, isLoading: false });
+    }
+  },
 
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
       const { user, token } = await authService.login({ email, password });
-      // Set the token in localStorage and update the axios instance
       localStorage.setItem('auth_token', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       set({ user, isAuthenticated: true, error: null });
@@ -54,7 +72,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await authService.logout();
-      // Clear token from localStorage and axios instance
       localStorage.removeItem('auth_token');
       delete api.defaults.headers.common['Authorization'];
       set({ user: null, isAuthenticated: false });

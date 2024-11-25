@@ -32,7 +32,136 @@ export default {
       daily: 'Daily',
       monthly: 'Monthly',
       yearly: 'Yearly',
-      timeScale: 'Time Scale'
+      timeScale: 'Time Scale',
+      tasks: 'Tasks',
+      tasksCompleted: 'Tasks Completed',
+      projectProgress: 'Project Progress',
+      hoursAllocation: 'Hours Allocation',
+      hoursLimitExceeded: 'Hours Limit Exceeded',
+      hoursOverAllocationWarning: 'Hours Over-allocation Warning',
+      availableForTasks: 'Available for additional tasks',
+      totalEstimatedHours: 'Total estimated hours',
+      allocated: 'allocated',
+      planned: 'planned',
+      assignee: 'Assignee',
+      unassigned: 'Unassigned',
+      timeTracking: 'Time Tracking',
+      summary: 'Summary',
+      key: 'Key',
+      budget: 'Budget',
+      cumulativeHours: 'Cumulative Hours',
+      projectType: {
+        timeBased: 'Time-based',
+        fixedPrice: 'Fixed Price'
+      },
+      alerts: {
+        hoursExceededBy: 'Hours exceeded by',
+        estimatedOver: 'Estimated {{hours}}h over budget',
+        immediateAction: 'Immediate action required: Request additional hours or pause work on the project.',
+        considerAction: 'Consider requesting additional hours or reviewing task estimates.',
+        hoursExceededTitle: 'Hours Limit Exceeded',
+        hoursExceededDescription: 'The project has exceeded its allocated hours by {{hours}} hours. ({{spent}}h spent of {{total}}h allocated)',
+        overAllocationTitle: 'Hours Over-allocation Warning',
+        overAllocationDescription: 'The total estimated hours for all tasks ({{estimated}}h) exceeds the project\'s allocated hours ({{total}}h) by {{difference}} hours.',
+        hoursAllocationTitle: 'Hours Allocation',
+        hoursAllocationDescription: 'Total estimated hours: {{estimated}}h of {{total}}h allocated ({{percentage}}% planned)',
+        availableHours: 'Available for additional tasks: {{hours}}h'
+      },
+      hourRequests: {
+        title: 'Hour Requests Management',
+        search: 'Search by project name',
+        status: {
+          all: 'All Status',
+          pending: 'Pending',
+          approved: 'Approved',
+          rejected: 'Rejected'
+        },
+        fields: {
+          project: 'Project',
+          requestedBy: 'Requested By',
+          hours: 'Hours',
+          status: 'Status',
+          neededBy: 'Needed By',
+          requested: 'Requested',
+          reason: 'Reason',
+          reviewDetails: 'Review Details',
+          reviewedBy: 'Reviewed by',
+          reviewedOn: 'Reviewed on',
+          notes: 'Notes',
+          unknownUser: 'Unknown User',
+          totalItems: 'Total {{total}} items',
+          client: 'Client',
+          requestDate: 'Request Date',
+          reviewer: 'Reviewer',
+          reviewDate: 'Review Date',
+          decision: 'Decision'
+        },
+        actions: {
+          review: 'Review',
+          delete: 'Delete',
+          expand: 'Show Details',
+          collapse: 'Hide Details',
+          approve: 'Approve',
+          reject: 'Reject',
+          submit: 'Submit',
+          cancel: 'Cancel'
+        },
+        alerts: {
+          pendingReview: 'Hour Request Pending Review',
+          approved: 'Hour Request Approved',
+          rejected: 'Hour Request Rejected',
+          requestSubmitted: 'A request for {{hours}}h is pending review.',
+          requestApproved: 'Request for {{hours}}h was approved.',
+          requestRejected: 'Request for {{hours}}h was rejected.',
+          submittedOn: 'Submitted on {{date}}',
+          reviewedOn: 'Reviewed on {{date}}',
+          noRequests: 'No hour requests found',
+          pendingAction: 'This request requires your review',
+          approvalNeeded: 'Approval needed for {{hours}}h request',
+          rejectionReason: 'Request was rejected: {{reason}}'
+        },
+        review: {
+          title: 'Review Hour Request',
+          requestDetails: 'Request Details',
+          hoursRequested: 'Hours Requested',
+          decision: 'Decision',
+          approve: 'Approve',
+          reject: 'Reject',
+          reviewNotes: 'Review Notes',
+          notesPlaceholder: 'Provide any additional notes or reasons for your decision...',
+          submit: 'Submit Review',
+          cancel: 'Cancel',
+          confirmSubmit: 'Are you sure you want to submit this review?',
+          approveConfirm: 'Are you sure you want to approve this request?',
+          rejectConfirm: 'Are you sure you want to reject this request?',
+          notesRequired: 'Please provide review notes'
+        },
+        delete: {
+          title: 'Delete Hour Request',
+          confirm: 'Are you sure you want to delete this hour request?',
+          success: 'Request deleted successfully',
+          error: 'Failed to delete request',
+          confirmButton: 'Yes, delete',
+          cancelButton: 'No, keep it'
+        },
+        messages: {
+          fetchError: 'Failed to fetch hour requests',
+          reviewSuccess: 'Request reviewed successfully',
+          reviewError: 'Failed to review request',
+          deleteSuccess: 'Request deleted successfully',
+          deleteError: 'Failed to delete request',
+          createSuccess: 'Hour request created successfully',
+          createError: 'Failed to create hour request',
+          updateSuccess: 'Request updated successfully',
+          updateError: 'Failed to update request'
+        },
+        filters: {
+          allProjects: 'All Projects',
+          allStatus: 'All Status',
+          dateRange: 'Date Range',
+          searchPlaceholder: 'Search projects or requesters...'
+        }
+      }
     },
     auth: {
       login: 'Login',
@@ -79,13 +208,19 @@ export default {
       comments: 'Comments',
       details: 'Details',
       viewDetails: 'View Details',
-      editDetails: 'Edit Details'
+      editDetails: 'Edit Details',
+      linkJiraEpic: 'Link Jira Epic',
+      jiraEpicKey: 'Jira Epic Key',
+      jiraProjectKey: 'Jira Project Key'
     },
     task: {
+      taskDetails: 'Task Details',
       taskDescription: 'Task Description',
       requestNewTask: 'Request New Task',
       submitRequest: 'Submit Request',
-      taskDetails: 'Task Details',
+      timeSpent: 'Time Spent',
+      originalEstimate: 'Original Estimate',
+      remainingEstimate: 'Remaining Estimate',
       priority: {
         low: 'Low',
         medium: 'Medium',
@@ -101,6 +236,7 @@ export default {
       }
     },
     expense: {
+      expenseDetails: 'Expense Details',
       recurringExpense: 'Recurring Expense',
       recurringInterval: 'Recurring Interval',
       intervals: {
@@ -117,7 +253,9 @@ export default {
       }
     },
     validation: {
+      required: 'This field is required',
       hoursRequired: 'Please enter the number of hours needed',
+      hoursMin: 'Hours must be greater than 0',
       reasonRequired: 'Please provide a reason for the request',
       dateRequired: 'Please select a date',
       descriptionRequired: 'Please enter a description',
@@ -126,11 +264,13 @@ export default {
       intervalRequired: 'Please select an interval',
       emailRequired: 'Please enter your email',
       emailInvalid: 'Please enter a valid email',
-      passwordRequired: 'Please enter your password'
+      passwordRequired: 'Please enter your password',
+      minPassword: 'Password must be at least 6 characters'
     },
     admin: {
       title: 'Admin Dashboard',
       menu: {
+        hourRequests: 'Hour Requests',
         projects: 'Projects',
         expenses: 'Expenses',
         users: 'Users',
@@ -147,7 +287,9 @@ export default {
         actions: 'Actions',
         name: 'Project Name',
         startDate: 'Start Date',
-        endDate: 'End Date'
+        endDate: 'End Date',
+        type: 'Project Type',
+        team: 'Team'
       },
       expenses: {
         title: 'Expense Management',
@@ -167,7 +309,18 @@ export default {
         status: 'Status',
         lastLogin: 'Last Login',
         email: 'Email',
-        name: 'Name'
+        name: 'Name',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        roles: {
+          admin: 'Admin',
+          manager: 'Manager',
+          user: 'User'
+        },
+        statuses: {
+          active: 'Active',
+          inactive: 'Inactive'
+        }
       },
       common: {
         save: 'Save',
@@ -178,8 +331,13 @@ export default {
         search: 'Search',
         filter: 'Filter',
         noData: 'No data available',
-        confirmDelete: 'Are you sure you want to delete this item?'
+        confirmDelete: 'Are you sure you want to delete this item?',
+        team: 'Team',
+        addUser: 'Add User',
+        removeUser: 'Remove User',
+        selectUser: 'Select user',
+        selectRole: 'Select role'
       }
     }
   }
-};
+}
