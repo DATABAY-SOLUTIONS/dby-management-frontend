@@ -20,7 +20,7 @@ export const JiraTaskDetails: React.FC<JiraTaskDetailsProps> = ({
                                                                     onClose
                                                                 }) => {
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = React.useState('1');
+    const [activeTab, setActiveTab] = useState('1');
     const [comments, setComments] = useState<JiraTaskComment[]>([]);
     const [loading, setLoading] = useState(false);
 

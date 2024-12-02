@@ -1,18 +1,31 @@
 import React, { useState } from 'react';
 import { Menu, Avatar, Dropdown, Switch, Badge, Select } from 'antd';
-import { User, LogOut, Settings, Bell, Mail, MessageSquare, Globe, LayoutDashboard } from 'lucide-react';
+import { User, LogOut, Settings, Bell, Mail, MessageCircle, Globe, LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { getRolePermissions } from '../types/user';
 import { UnreadMessagesDrawer } from './UnreadMessagesDrawer';
+import { useQuery } from 'react-query';
+import { jiraService } from '../services/jira';
 import type { MenuProps } from 'antd';
 
 export const UserMenu: React.FC = () => {
-    const { user, isAuthenticated, logout, updateUserSettings, unreadMessages } = useAuthStore();
+    const { user, isAuthenticated, logout, updateUserSettings } = useAuthStore();
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const [isMessagesDrawerVisible, setIsMessagesDrawerVisible] = useState(false);
+
+    const { data: unreadComments = [] } = useQuery(
+        'unreadComments',
+        () => jiraService.getUnreadComments(),
+        {
+            enabled: isAuthenticated,
+            refetchInterval: 30000 // Refresh every 30 seconds
+        }
+    );
+
+    const totalUnreadCount = unreadComments.reduce((sum, item) => sum + item.unreadCount, 0);
 
     const permissions = getRolePermissions(user?.role || 'user');
     const canAccessAdmin = permissions.canManageProjects || permissions.canManageUsers || permissions.canManageExpenses;
@@ -54,11 +67,11 @@ export const UserMenu: React.FC = () => {
             label: (
                 <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
-                        <MessageSquare size={16} />
+                        <MessageCircle size={16} />
                         <span>{t('menu.messages')}</span>
                     </div>
-                    {unreadMessages > 0 && (
-                        <Badge count={unreadMessages} size="small" />
+                    {totalUnreadCount > 0 && (
+                        <Badge count={totalUnreadCount} size="small" />
                     )}
                 </div>
             )
@@ -154,9 +167,11 @@ export const UserMenu: React.FC = () => {
                 placement="bottomRight"
             >
                 <div className="cursor-pointer">
-                    <Badge dot={unreadMessages > 0}>
+                    <Badge dot={totalUnreadCount > 0}>
                         {isAuthenticated && user ? (
-                            <Avatar src={user.avatar} alt={user.name} />
+                            <Avatar src={user.avatar} alt={user.name}>
+                                {user.name[0]}
+                            </Avatar>
                         ) : (
                             <Avatar icon={<User size={16} />} />
                         )}

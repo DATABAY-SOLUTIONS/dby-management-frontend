@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Progress, Typography, Tag, Space, Alert } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { Project } from '../types/project';
 import { useJiraTasksQuery } from '../hooks/useJiraTasksQuery';
 import { Clock, Euro, Hourglass, Lock, ExternalLink, AlertTriangle } from 'lucide-react';
@@ -8,28 +9,21 @@ const { Title, Text } = Typography;
 
 interface ProjectCardProps {
   project: Project;
-  onClick: () => void;
 }
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
-  const { data: jiraTasks = [], isLoading } = useJiraTasksQuery(project.id);
+export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+  const navigate = useNavigate();
+  const { data: jiraTasks = [] } = useJiraTasksQuery(project.id);
 
-  const totalTimeSpent = React.useMemo(() =>
-          jiraTasks?.reduce((total, task) =>
-              total + (task.timeTracking?.timeSpentSeconds || 0) / 3600, 0
-          ) || 0
-      , [jiraTasks]);
+  const totalTimeSpent = jiraTasks.reduce((total, task) =>
+      total + task.timeTracking.timeSpentSeconds / 3600, 0);
 
-  const totalEstimatedHours = React.useMemo(() =>
-          jiraTasks?.reduce((total, task) =>
-              total + (task.timeTracking?.originalEstimateSeconds || 0) / 3600, 0
-          ) || 0
-      , [jiraTasks]);
+  const totalEstimatedHours = jiraTasks.reduce((total, task) =>
+      total + task.timeTracking.originalEstimateSeconds / 3600, 0);
 
   const getProjectProgress = () => {
-    if (!jiraTasks?.length) return 0;
     const completedTasks = jiraTasks.filter(task => task.status === 'Finalizada').length;
-    return Math.round((completedTasks / jiraTasks.length) * 100);
+    return jiraTasks.length > 0 ? Math.round((completedTasks / jiraTasks.length) * 100) : 0;
   };
 
   const getStatusColor = (status: Project['status']) => {
@@ -60,13 +54,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) =>
     );
   };
 
-  const isOverBudget = project.type === 'time-based' && totalTimeSpent > (project.totalHours || 0);
-  const isOverEstimated = project.type === 'time-based' && totalEstimatedHours > (project.totalHours || 0);
+  const isOverBudget = project.type === 'time-based' && totalTimeSpent > project.totalHours!;
+  const isOverEstimated = project.type === 'time-based' && totalEstimatedHours > project.totalHours!;
 
   return (
       <Card
           hoverable
-          onClick={onClick}
+          onClick={() => navigate(`/projects/${project.id}`)}
           className="w-full transition-shadow duration-300 hover:shadow-lg"
       >
         <Space direction="vertical" className="w-full">
@@ -93,7 +87,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) =>
           {isOverBudget && (
               <Alert
                   type="error"
-                  message={`Hours exceeded by ${(totalTimeSpent - (project.totalHours || 0)).toFixed(1)}h`}
+                  message={`Hours exceeded by ${(totalTimeSpent - project.totalHours!).toFixed(1)}h`}
                   icon={<AlertTriangle size={16} />}
                   className="!mb-2"
                   banner
@@ -103,7 +97,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) =>
           {!isOverBudget && isOverEstimated && (
               <Alert
                   type="warning"
-                  message={`Estimated ${(totalEstimatedHours - (project.totalHours || 0)).toFixed(1)}h over budget`}
+                  message={`Estimated ${(totalEstimatedHours - project.totalHours!).toFixed(1)}h over budget`}
                   icon={<AlertTriangle size={16} />}
                   className="!mb-2"
                   banner
@@ -136,7 +130,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) =>
               <Space>
                 <Text className="text-gray-500">Tasks:</Text>
                 <Text>
-                  {jiraTasks?.filter(task => task.status === 'Finalizada').length || 0} / {jiraTasks?.length || 0}
+                  {jiraTasks.filter(task => task.status === 'Finalizada').length} / {jiraTasks.length}
                 </Text>
               </Space>
             </div>

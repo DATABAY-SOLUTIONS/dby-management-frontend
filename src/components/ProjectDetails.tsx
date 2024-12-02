@@ -1,69 +1,73 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Space, Tag, Modal, message, Alert } from 'antd';
-import {
-    AlertTriangle,
-    ExternalLink,
-    Clock,
-    CheckCircle,
-    XCircle
-} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Project, TimeEntry, Expense } from '../types/project';
-import { JiraTask } from '../types/jira';
-import { TimeEntryDetails } from './TimeEntryDetails';
-import { ExpenseDetails } from './ExpenseDetails';
-import { RequestHoursModal } from './RequestHoursModal';
-import { JiraTaskDetails } from './JiraTaskDetails';
-import { HoursChart } from './HoursChart';
-import { ProjectMetrics } from './ProjectMetrics';
-import { ProjectTabs } from './ProjectTabs';
+import { useProjectStore } from '../store/projectStore';
 import { useJiraTasksQuery } from '../hooks/useJiraTasksQuery';
 import { hourRequestService } from '../services/hourRequests';
+import { ProjectMetrics } from './ProjectMetrics';
+import { ProjectTabs } from './ProjectTabs';
+import { HoursChart } from './HoursChart';
+import { RequestHoursModal } from './RequestHoursModal';
+import { JiraTaskDetails } from './JiraTaskDetails';
+import { TimeEntryDetails } from './TimeEntryDetails';
+import { ExpenseDetails } from './ExpenseDetails';
+import { ExternalLink, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { TimeEntry, Expense } from '../types/project';
+import { JiraTask } from '../types/jira';
 import dayjs from 'dayjs';
 
-interface ProjectDetailsProps {
-    project: Project;
-    onAddTimeEntry: (projectId: string, entry: Omit<TimeEntry, 'id' | 'projectId' | 'comments'>) => Promise<void>;
-    onAddExpense: (projectId: string, expense: Omit<Expense, 'id' | 'projectId'>) => Promise<void>;
-    onUpdateTimeEntry: (projectId: string, entry: TimeEntry) => Promise<void>;
-    onUpdateExpense: (projectId: string, expense: Expense) => Promise<void>;
-    onAddComment: (projectId: string, timeEntryId: string, content: string) => Promise<void>;
-    isLoading?: boolean;
-}
-
-export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
-                                                                  project,
-                                                                  onAddTimeEntry,
-                                                                  onAddExpense,
-                                                                  onUpdateTimeEntry,
-                                                                  onUpdateExpense,
-                                                                  onAddComment,
-                                                                  isLoading
-                                                              }) => {
+export const ProjectDetails: React.FC = () => {
+    const { projectId } = useParams<{ projectId: string }>();
+    const navigate = useNavigate();
     const { t } = useTranslation();
-    const [selectedTimeEntry, setSelectedTimeEntry] = useState<TimeEntry | null>(null);
-    const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
-    const [selectedJiraTask, setSelectedJiraTask] = useState<JiraTask | null>(null);
+    const { projects, addTimeEntry, addExpense, updateTimeEntry, updateExpense, addComment, isLoading } = useProjectStore();
+
+    // State
     const [isRequestHoursModalVisible, setIsRequestHoursModalVisible] = useState(false);
     const [hourRequests, setHourRequests] = useState<any[]>([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
-    const { data: jiraTasks = [], isLoading: isLoadingJiraTasks } = useJiraTasksQuery(project.id);
+    const [selectedTask, setSelectedTask] = useState<JiraTask | null>(null);
+    const [selectedTimeEntry, setSelectedTimeEntry] = useState<TimeEntry | null>(null);
+    const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
+    const project = projects.find(p => p.id === projectId);
+    const { data: jiraTasks = [], isLoading: isLoadingJiraTasks } = useJiraTasksQuery(projectId!);
+
+    // Check for stored task key on mount
     useEffect(() => {
-        const fetchHourRequests = async () => {
-            setLoadingRequests(true);
-            try {
-                const requests = await hourRequestService.getProjectHourRequests(project.id);
-                setHourRequests(requests);
-            } catch (error) {
-                console.error('Failed to fetch hour requests:', error);
-            } finally {
-                setLoadingRequests(false);
+        const storedTaskKey = sessionStorage.getItem('openTaskKey');
+        if (storedTaskKey) {
+            const task = jiraTasks.find(t => t.key === storedTaskKey);
+            if (task) {
+                setSelectedTask(task);
+                sessionStorage.removeItem('openTaskKey');
             }
-        };
+        }
+    }, [jiraTasks]);
 
-        fetchHourRequests();
-    }, [project.id]);
+    // Fetch hour requests
+    useEffect(() => {
+        if (projectId) {
+            const fetchHourRequests = async () => {
+                setLoadingRequests(true);
+                try {
+                    const requests = await hourRequestService.getProjectHourRequests(projectId);
+                    setHourRequests(requests);
+                } catch (error) {
+                    console.error('Failed to fetch hour requests:', error);
+                } finally {
+                    setLoadingRequests(false);
+                }
+            };
+
+            fetchHourRequests();
+        }
+    }, [projectId]);
+
+    if (!project) {
+        return null;
+    }
 
     const totalTimeSpent = jiraTasks.reduce((total, task) =>
         total + task.timeTracking.timeSpentSeconds / 3600, 0);
@@ -143,6 +147,12 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
             <Card>
                 <div className="flex justify-between items-start mb-6">
                     <div>
+                        <h2
+                            className="text-xl font-semibold cursor-pointer hover:text-blue-500 dark:text-white transition-colors duration-300 mb-2"
+                            onClick={() => navigate('/')}
+                        >
+                            ← {t('common.backToProjects')}
+                        </h2>
                         <h1 className="text-2xl font-semibold mb-2">{project.name}</h1>
                         <p className="text-gray-500">{project.client}</p>
                     </div>
@@ -198,25 +208,31 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
                     hourRequests={hourRequests}
                     isLoadingJiraTasks={isLoadingJiraTasks}
                     isLoadingHourRequests={loadingRequests}
-                    onAddTimeEntry={onAddTimeEntry}
-                    onAddExpense={onAddExpense}
+                    onAddTimeEntry={addTimeEntry}
+                    onAddExpense={addExpense}
                     onSelectTimeEntry={setSelectedTimeEntry}
                     onSelectExpense={setSelectedExpense}
-                    onSelectJiraTask={setSelectedJiraTask}
+                    onSelectJiraTask={setSelectedTask}
                     isLoading={isLoading}
                 />
             </Card>
+
+            <JiraTaskDetails
+                task={selectedTask}
+                visible={!!selectedTask}
+                onClose={() => setSelectedTask(null)}
+            />
 
             <TimeEntryDetails
                 entry={selectedTimeEntry}
                 visible={!!selectedTimeEntry}
                 onClose={() => setSelectedTimeEntry(null)}
                 onSave={(entry) => {
-                    onUpdateTimeEntry(project.id, entry);
+                    updateTimeEntry(project.id, entry);
                     setSelectedTimeEntry(null);
                 }}
                 onAddComment={(entryId, content) => {
-                    onAddComment(project.id, entryId, content);
+                    addComment(project.id, entryId, content);
                 }}
             />
 
@@ -226,22 +242,16 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
                 onClose={() => setSelectedExpense(null)}
             />
 
-            <JiraTaskDetails
-                task={selectedJiraTask}
-                visible={!!selectedJiraTask}
-                onClose={() => setSelectedJiraTask(null)}
-            />
-
             <RequestHoursModal
                 visible={isRequestHoursModalVisible}
                 onClose={() => setIsRequestHoursModalVisible(false)}
                 onSubmit={async (request) => {
                     try {
-                        await hourRequestService.createHourRequest(project.id, request);
+                        await hourRequestService.createHourRequest(projectId!, request);
                         message.success(t('common.hourRequests.messages.createSuccess'));
                         setIsRequestHoursModalVisible(false);
                         // Refresh hour requests
-                        const updatedRequests = await hourRequestService.getProjectHourRequests(project.id);
+                        const updatedRequests = await hourRequestService.getProjectHourRequests(projectId!);
                         setHourRequests(updatedRequests);
                     } catch (error) {
                         message.error(t('common.hourRequests.messages.createError'));

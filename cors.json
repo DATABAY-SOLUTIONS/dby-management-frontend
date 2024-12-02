@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://clients-site-manager.databay-solutions.workers.dev","https://clients.databay.cloud"],
+    "responseHeader": ["Content-Type", "Access-Control-Allow-Origin"],
+    "method": ["GET", "HEAD", "OPTIONS"],
+    "maxAgeSeconds": 3600
+  }
+]

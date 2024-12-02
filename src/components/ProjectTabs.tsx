@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Project, TimeEntry, Expense } from '../types/project';
 import { JiraTask } from '../types/jira';
 import { TimeTrackingDisplay } from './TimeTrackingDisplay';
+import { TimeEntryDetails } from './TimeEntryDetails';
+import { ExpenseDetails } from './ExpenseDetails';
+import { JiraTaskDetails } from './JiraTaskDetails';
 import dayjs from 'dayjs';
 import type { HourRequest } from '../services/hourRequests';
 
@@ -18,6 +21,8 @@ interface ProjectTabsProps {
     isLoadingHourRequests: boolean;
     onAddTimeEntry: (projectId: string, entry: Omit<TimeEntry, 'id' | 'projectId' | 'comments'>) => Promise<void>;
     onAddExpense: (projectId: string, expense: Omit<Expense, 'id' | 'projectId'>) => Promise<void>;
+    onUpdateTimeEntry: (projectId: string, entry: TimeEntry) => Promise<void>;
+    onUpdateExpense: (projectId: string, expense: Expense) => Promise<void>;
     onSelectTimeEntry: (entry: TimeEntry) => void;
     onSelectExpense: (expense: Expense) => void;
     onSelectJiraTask: (task: JiraTask) => void;
@@ -70,12 +75,152 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
         hourRequestStatusFilter === 'all' || request.status === hourRequestStatusFilter
     );
 
+    const taskColumns = [
+        {
+            title: 'Key',
+            dataIndex: 'key',
+            key: 'key',
+            sorter: (a: JiraTask, b: JiraTask) => a.key.localeCompare(b.key),
+            render: (key: string) => (
+                <Tag color="blue" className="inline-flex items-center gap-1">
+                    <ExternalLink size={12} className="flex-shrink-0" />
+                    {key}
+                </Tag>
+            )
+        },
+        {
+            title: 'Summary',
+            dataIndex: 'summary',
+            key: 'summary',
+            width: '30%',
+            sorter: (a: JiraTask, b: JiraTask) => a.summary.localeCompare(b.summary)
+        },
+        {
+            title: 'Created',
+            dataIndex: 'created',
+            key: 'created',
+            render: (date: string) => dayjs(date).format('MMM D, YYYY HH:mm'),
+            sorter: (a: JiraTask, b: JiraTask) => dayjs(a.created).unix() - dayjs(b.created).unix()
+        },
+        {
+            title: 'Updated',
+            dataIndex: 'updated',
+            key: 'updated',
+            render: (date: string) => dayjs(date).format('MMM D, YYYY HH:mm'),
+            sorter: (a: JiraTask, b: JiraTask) => dayjs(a.updated).unix() - dayjs(b.updated).unix()
+        },
+        {
+            title: 'Time Tracking',
+            key: 'timeTracking',
+            sorter: (a: JiraTask, b: JiraTask) =>
+                a.timeTracking.timeSpentSeconds - b.timeTracking.timeSpentSeconds,
+            render: (_: any, record: JiraTask) => (
+                <TimeTrackingDisplay timeTracking={record.timeTracking} showProgress={false} />
+            )
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            sorter: (a: JiraTask, b: JiraTask) => a.status.localeCompare(b.status),
+            render: (status: string) => (
+                <Tag color={
+                    status === 'Finalizada' ? 'success' :
+                        status === 'En progreso' ? 'processing' :
+                            'default'
+                }>
+                    {status}
+                </Tag>
+            ),
+            filters: [
+                { text: 'Completed', value: 'Finalizada' },
+                { text: 'In Progress', value: 'En progreso' },
+                { text: 'Pending', value: 'Pendiente' }
+            ],
+            onFilter: (value: string, record: JiraTask) => record.status === value
+        },
+        {
+            title: 'Assignee',
+            key: 'assignee',
+            sorter: (a: JiraTask, b: JiraTask) => {
+                const nameA = a.assignee?.name || '';
+                const nameB = b.assignee?.name || '';
+                return nameA.localeCompare(nameB);
+            },
+            render: (_: any, record: JiraTask) => record.assignee ? (
+                <div className="flex items-center gap-2">
+                    {record.assignee.avatarUrl ? (
+                        <img
+                            src={record.assignee.avatarUrl}
+                            alt={record.assignee.name}
+                            className="w-6 h-6 rounded-full"
+                        />
+                    ) : (
+                        <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
+                            {record.assignee.name.charAt(0)}
+                        </div>
+                    )}
+                    <span>{record.assignee.name}</span>
+                </div>
+            ) : '-'
+        }
+    ];
+
+    const expenseColumns = [
+        {
+            title: t('common.description'),
+            dataIndex: 'description',
+            key: 'description',
+            sorter: (a: Expense, b: Expense) => a.description.localeCompare(b.description)
+        },
+        {
+            title: t('common.amount'),
+            dataIndex: 'amount',
+            key: 'amount',
+            render: (amount: number) => `€${amount.toFixed(2)}`,
+            sorter: (a: Expense, b: Expense) => a.amount - b.amount
+        },
+        {
+            title: t('common.category'),
+            dataIndex: 'category',
+            key: 'category',
+            filters: [
+                { text: 'Hosting', value: 'Hosting' },
+                { text: 'Software Licenses', value: 'Software Licenses' },
+                { text: 'Infrastructure', value: 'Infrastructure' },
+                { text: 'Other', value: 'Other' }
+            ],
+            onFilter: (value: string, record: Expense) => record.category === value
+        },
+        {
+            title: t('common.date'),
+            dataIndex: 'date',
+            key: 'date',
+            render: (date: string) => dayjs(date).format('MMM D, YYYY'),
+            sorter: (a: Expense, b: Expense) => dayjs(a.date).unix() - dayjs(b.date).unix()
+        },
+        {
+            title: t('common.recurring'),
+            key: 'recurring',
+            filters: [
+                { text: 'Monthly', value: 'monthly' },
+                { text: 'Quarterly', value: 'quarterly' },
+                { text: 'Yearly', value: 'yearly' }
+            ],
+            onFilter: (value: string, record: Expense) => record.recurringInterval === value,
+            render: (text: string, record: Expense) => record.isRecurring ? (
+                <Tag color="blue">{record.recurringInterval}</Tag>
+            ) : null
+        }
+    ];
+
     const hourRequestColumns = [
         {
             title: t('common.hourRequests.fields.hours'),
             dataIndex: 'hours',
             key: 'hours',
-            render: (hours: number) => `${hours}h`
+            render: (hours: number) => `${hours}h`,
+            sorter: (a: HourRequest, b: HourRequest) => a.hours - b.hours
         },
         {
             title: t('common.hourRequests.fields.status'),
@@ -96,19 +241,27 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                         {t(`common.hourRequests.status.${status}`)}
                     </Tag>
                 );
-            }
+            },
+            filters: [
+                { text: t('common.hourRequests.status.pending'), value: 'pending' },
+                { text: t('common.hourRequests.status.approved'), value: 'approved' },
+                { text: t('common.hourRequests.status.rejected'), value: 'rejected' }
+            ],
+            onFilter: (value: string, record: HourRequest) => record.status === value
         },
         {
             title: t('common.hourRequests.fields.neededBy'),
             dataIndex: 'neededBy',
             key: 'neededBy',
-            render: (date: string) => dayjs(date).format('MMM D, YYYY')
+            render: (date: string) => dayjs(date).format('MMM D, YYYY'),
+            sorter: (a: HourRequest, b: HourRequest) => dayjs(a.neededBy).unix() - dayjs(b.neededBy).unix()
         },
         {
             title: t('common.hourRequests.fields.requested'),
             dataIndex: 'requestedAt',
             key: 'requestedAt',
-            render: (date: string) => dayjs(date).format('MMM D, YYYY HH:mm')
+            render: (date: string) => dayjs(date).format('MMM D, YYYY HH:mm'),
+            sorter: (a: HourRequest, b: HourRequest) => dayjs(a.requestedAt).unix() - dayjs(b.requestedAt).unix()
         },
         {
             title: t('common.hourRequests.fields.requestedBy'),
@@ -174,67 +327,9 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                                     ))}
                                 </Select>
                             </div>
+
                             <Table
-                                columns={[
-                                    {
-                                        title: 'Key',
-                                        dataIndex: 'key',
-                                        key: 'key',
-                                        render: (key: string) => (
-                                            <Tag color="blue" className="inline-flex items-center gap-1">
-                                                <ExternalLink size={12} className="flex-shrink-0" />
-                                                {key}
-                                            </Tag>
-                                        )
-                                    },
-                                    {
-                                        title: 'Summary',
-                                        dataIndex: 'summary',
-                                        key: 'summary',
-                                        width: '40%'
-                                    },
-                                    {
-                                        title: 'Time Tracking',
-                                        key: 'timeTracking',
-                                        render: (_: any, record: JiraTask) => (
-                                            <TimeTrackingDisplay timeTracking={record.timeTracking} showProgress={false} />
-                                        )
-                                    },
-                                    {
-                                        title: 'Status',
-                                        dataIndex: 'status',
-                                        key: 'status',
-                                        render: (status: string) => (
-                                            <Tag color={
-                                                status === 'Finalizada' ? 'success' :
-                                                    status === 'En progreso' ? 'processing' :
-                                                        'default'
-                                            }>
-                                                {status}
-                                            </Tag>
-                                        )
-                                    },
-                                    {
-                                        title: 'Assignee',
-                                        key: 'assignee',
-                                        render: (_: any, record: JiraTask) => record.assignee ? (
-                                            <div className="flex items-center gap-2">
-                                                {record.assignee.avatarUrl ? (
-                                                    <img
-                                                        src={record.assignee.avatarUrl}
-                                                        alt={record.assignee.name}
-                                                        className="w-6 h-6 rounded-full"
-                                                    />
-                                                ) : (
-                                                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">
-                                                        {record.assignee.name.charAt(0)}
-                                                    </div>
-                                                )}
-                                                <span>{record.assignee.name}</span>
-                                            </div>
-                                        ) : '-'
-                                    }
-                                ]}
+                                columns={taskColumns}
                                 dataSource={filteredTasks}
                                 loading={isLoadingJiraTasks}
                                 rowKey="id"
@@ -251,50 +346,8 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                     label: t('project.expenses'),
                     children: (
                         <div className="space-y-4">
-                            <Button
-                                type="primary"
-                                icon={<Plus size={16} />}
-                                onClick={() => onAddExpense(project.id, {
-                                    description: '',
-                                    amount: 0,
-                                    category: '',
-                                    date: dayjs().format('YYYY-MM-DD')
-                                })}
-                            >
-                                {t('project.addExpense')}
-                            </Button>
                             <Table
-                                columns={[
-                                    {
-                                        title: t('common.description'),
-                                        dataIndex: 'description',
-                                        key: 'description'
-                                    },
-                                    {
-                                        title: t('common.amount'),
-                                        dataIndex: 'amount',
-                                        key: 'amount',
-                                        render: (amount: number) => `€${amount.toFixed(2)}`
-                                    },
-                                    {
-                                        title: t('common.category'),
-                                        dataIndex: 'category',
-                                        key: 'category'
-                                    },
-                                    {
-                                        title: t('common.date'),
-                                        dataIndex: 'date',
-                                        key: 'date',
-                                        render: (date: string) => dayjs(date).format('MMM D, YYYY')
-                                    },
-                                    {
-                                        title: t('common.recurring'),
-                                        key: 'recurring',
-                                        render: (text: string, record: Expense) => record.isRecurring ? (
-                                            <Tag color="blue">{record.recurringInterval}</Tag>
-                                        ) : null
-                                    }
-                                ]}
+                                columns={expenseColumns}
                                 dataSource={project.expenses}
                                 rowKey="id"
                                 onRow={(record) => ({
@@ -307,7 +360,7 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                 },
                 {
                     key: '3',
-                    label: t('common.hourRequests'),
+                    label: t('common.hourRequests.title'),
                     children: (
                         <div className="space-y-4">
                             <Select
