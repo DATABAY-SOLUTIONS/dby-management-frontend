@@ -1,11 +1,11 @@
 import { api, USE_MOCK_DATA } from '../config/api';
-import { Project, TimeEntry, Expense } from '../types/project';
+import { Project, TimeEntry, Expense, ExpensePayment } from '../types/project';
 import { demoProjects } from '../config/demo-data';
 
 const SIMULATE_DELAY = 800;
 
-const simulateDelay = () => 
-  USE_MOCK_DATA ? new Promise(resolve => setTimeout(resolve, SIMULATE_DELAY)) : Promise.resolve();
+const simulateDelay = () =>
+    USE_MOCK_DATA ? new Promise(resolve => setTimeout(resolve, SIMULATE_DELAY)) : Promise.resolve();
 
 export const projectService = {
   async getProjects(): Promise<Project[]> {
@@ -47,7 +47,7 @@ export const projectService = {
       await simulateDelay();
       const projectIndex = demoProjects.findIndex(p => p.id === id);
       if (projectIndex === -1) throw new Error('Project not found');
-      
+
       const updatedProject = {
         ...demoProjects[projectIndex],
         ...projectData
@@ -97,16 +97,28 @@ export const projectService = {
     return data;
   },
 
-  async addExpense(projectId: string, expense: Omit<Expense, 'id' | 'projectId'>): Promise<Expense> {
+  async addExpense(projectId: string, expense: Omit<Expense, 'id'>): Promise<Expense> {
     if (USE_MOCK_DATA) {
       await simulateDelay();
-      return {
+      const newExpense = {
         ...expense,
         id: crypto.randomUUID(),
-        projectId
+        projectId,
+        payments: [],
+        paidAmount: 0,
+        remainingAmount: expense.amount,
+        status: 'unpaid'
       };
+      return newExpense;
     }
-    const { data } = await api.post<Expense>(`/projects/${projectId}/expenses`, expense);
+    const { data } = await api.post<Expense>(`/projects/${projectId}/expenses`, {
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+      isRecurring: expense.isRecurring,
+      recurringInterval: expense.recurringInterval
+    });
     return data;
   },
 
@@ -128,14 +140,81 @@ export const projectService = {
       await simulateDelay();
       const project = demoProjects.find(p => p.id === projectId);
       if (!project) throw new Error('Project not found');
-      
+
       const expenseIndex = project.expenses.findIndex(e => e.id === expenseId);
       if (expenseIndex === -1) throw new Error('Expense not found');
-      
+
       project.expenses.splice(expenseIndex, 1);
       return;
     }
     await api.delete(`/projects/${projectId}/expenses/${expenseId}`);
+  },
+
+  async addExpensePayment(
+      projectId: string,
+      expenseId: string,
+      payment: Omit<ExpensePayment, 'id' | 'expenseId'>
+  ): Promise<ExpensePayment> {
+    if (USE_MOCK_DATA) {
+      await simulateDelay();
+      return {
+        ...payment,
+        id: crypto.randomUUID(),
+        expenseId
+      };
+    }
+    const { data } = await api.post<ExpensePayment>(
+        `/projects/${projectId}/expenses/${expenseId}/payments`,
+        payment
+    );
+    return data;
+  },
+
+  async updateExpensePayment(
+      projectId: string,
+      expenseId: string,
+      paymentId: string,
+      payment: Partial<ExpensePayment>
+  ): Promise<ExpensePayment> {
+    if (USE_MOCK_DATA) {
+      await simulateDelay();
+      return {
+        ...payment,
+        id: paymentId,
+        expenseId
+      } as ExpensePayment;
+    }
+    const { data } = await api.patch<ExpensePayment>(
+        `/projects/${projectId}/expenses/${expenseId}/payments/${paymentId}`,
+        payment
+    );
+    return data;
+  },
+
+  async deleteExpensePayment(
+      projectId: string,
+      expenseId: string,
+      paymentId: string
+  ): Promise<void> {
+    if (USE_MOCK_DATA) {
+      await simulateDelay();
+      return;
+    }
+    await api.delete(`/projects/${projectId}/expenses/${expenseId}/payments/${paymentId}`);
+  },
+
+  async getExpensePayments(
+      projectId: string,
+      expenseId: string
+  ): Promise<ExpensePayment[]> {
+    if (USE_MOCK_DATA) {
+      await simulateDelay();
+      return [];
+    }
+    const { data } = await api.get<ExpensePayment[]>(
+        `/projects/${projectId}/expenses/${expenseId}/payments`
+    );
+    return data;
   },
 
   async addComment(projectId: string, timeEntryId: string, content: string): Promise<TimeEntry> {

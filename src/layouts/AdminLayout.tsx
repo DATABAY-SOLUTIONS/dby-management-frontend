@@ -11,7 +11,8 @@ import {
   Briefcase,
   CreditCard,
   LayoutDashboard,
-  Clock
+  Clock,
+  Home
 } from 'lucide-react';
 
 const { Header, Sider, Content } = Layout;
@@ -54,15 +55,24 @@ export const AdminLayout: React.FC = () => {
   return (
       <Layout className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
         <Header className="flex items-center justify-between px-8 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
-          <div className="flex items-center gap-3">
-            <img
-                src="https://databay.solutions/wp-content/uploads/2024/08/Sin-titulo-2908-%C3%97-628-px-600-%C3%97-600-px-300-%C3%97-600-px-600-%C3%97-300-px-1.webp"
-                alt="Logo"
-                className="h-8 w-auto"
-            />
-            <h1 className="text-lg font-semibold m-0 dark:text-white transition-colors duration-300">
-              {t('common.appTitle')}
-            </h1>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <img
+                  src="https://databay.solutions/wp-content/uploads/2024/08/Sin-titulo-2908-%C3%97-628-px-600-%C3%97-600-px-300-%C3%97-600-px-600-%C3%97-300-px-1.webp"
+                  alt="Logo"
+                  className="h-8 w-auto"
+              />
+              <h1 className="text-lg font-semibold m-0 dark:text-white transition-colors duration-300">
+                {t('common.appTitle')}
+              </h1>
+            </div>
+            <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 text-gray-600 hover:text-blue-500 dark:text-gray-300 dark:hover:text-blue-400 transition-colors duration-300"
+            >
+              <Home size={16} />
+              <span>Home</span>
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

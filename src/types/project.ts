@@ -21,6 +21,17 @@ export interface TimeEntry {
   comments: Comment[];
 }
 
+export interface ExpensePayment {
+  id: string;
+  expenseId: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  paymentMethod?: 'bank-transfer' | 'credit-card' | 'cash' | 'other';
+  reference?: string;
+}
+
 export interface Expense {
   id: string;
   projectId: string;
@@ -30,6 +41,10 @@ export interface Expense {
   date: string;
   isRecurring?: boolean;
   recurringInterval?: 'monthly' | 'quarterly' | 'yearly';
+  payments?: ExpensePayment[];
+  paidAmount?: number;
+  remainingAmount?: number;
+  status?: 'unpaid' | 'partially-paid' | 'paid';
 }
 
 export type ProjectType = 'time-based' | 'fixed-price';
